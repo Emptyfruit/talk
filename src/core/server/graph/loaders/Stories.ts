@@ -3,7 +3,11 @@ import { defaultTo } from "lodash";
 import { DateTime } from "luxon";
 
 import GraphContext from "coral-server/graph/context";
-import { retrieveOngoingDiscussions } from "coral-server/models/comment";
+import {
+  retrieveManyStoryRatings,
+  retrieveOngoingDiscussions,
+  retrieveStoryRated,
+} from "coral-server/models/comment";
 import { retrieveTopStoryMetrics } from "coral-server/models/comment/metrics";
 import { Connection } from "coral-server/models/helpers";
 import { CloseCommenting } from "coral-server/models/settings";
@@ -159,6 +163,16 @@ const primeStoriesFromConnection = (ctx: GraphContext) => (
   return connection;
 };
 
+const primeStory = (ctx: GraphContext) => (
+  story: Readonly<Story> | null
+): Readonly<Story> | null => {
+  if (story) {
+    ctx.loaders.Stories.story.prime(story.id, story);
+  }
+
+  return story;
+};
+
 export default (ctx: GraphContext) => ({
   findOrCreate: new DataLoader(
     createManyBatchLoadFn((input: FindOrCreateStory) =>
@@ -169,11 +183,10 @@ export default (ctx: GraphContext) => ({
         input,
         ctx.scraperQueue,
         ctx.now
-      )
+      ).then(primeStory(ctx))
     ),
     {
-      // TODO: (wyattjoh) see if there's something we can do to improve the cache key
-      cacheKeyFn: (input: FindOrCreateStory) => `${input.id}:${input.url}`,
+      cacheKeyFn: (input: FindStory) => (input.id ? input.id : input.url),
       // Disable caching for the DataLoader if the Context is designed to be
       // long lived.
       cache: !ctx.disableCaching,
@@ -181,11 +194,10 @@ export default (ctx: GraphContext) => ({
   ),
   find: new DataLoader(
     createManyBatchLoadFn((input: FindStory) =>
-      find(ctx.mongo, ctx.tenant, input)
+      find(ctx.mongo, ctx.tenant, input).then(primeStory(ctx))
     ),
     {
-      // TODO: (wyattjoh) see if there's something we can do to improve the cache key
-      cacheKeyFn: (input: FindStory) => `${input.id}:${input.url}`,
+      cacheKeyFn: (input: FindStory) => (input.id ? input.id : input.url),
       // Disable caching for the DataLoader if the Context is designed to be
       // long lived.
       cache: !ctx.disableCaching,
@@ -227,6 +239,11 @@ export default (ctx: GraphContext) => ({
       ctx.now
     );
   },
+  rated: async (storyID: string) =>
+    retrieveStoryRated(ctx.mongo, ctx.tenant.id, storyID, ctx.user!.id),
+  ratings: new DataLoader((storyIDs: string[]) =>
+    retrieveManyStoryRatings(ctx.mongo, ctx.tenant.id, storyIDs)
+  ),
   ongoingDiscussions: (
     authorID: string,
     { limit }: UserToOngoingDiscussionsArgs
