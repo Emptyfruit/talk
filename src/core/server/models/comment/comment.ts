@@ -2,7 +2,7 @@ import { isEmpty } from "lodash";
 import { Db } from "mongodb";
 import * as uuid from "uuid";
 
-import { Sub } from "coral-common/types";
+import { RequireProperty, Sub } from "coral-common/types";
 import { dotize } from "coral-common/utils/dotize";
 import { CommentNotFoundError } from "coral-server/errors";
 import { createTimer } from "coral-server/helpers";
@@ -1115,7 +1115,7 @@ export async function retrieveOngoingDiscussions(
   return results;
 }
 
-export async function retrieveStoryRated(
+export async function retrieveAuthorStoryRating(
   mongo: Db,
   tenantID: string,
   storyID: string,
@@ -1123,7 +1123,9 @@ export async function retrieveStoryRated(
 ) {
   const timer = createTimer();
 
-  const previous = await collection(mongo).findOne({
+  const previous = await collection<RequireProperty<Comment, "rating">>(
+    mongo
+  ).findOne({
     tenantID,
     storyID,
     authorID,
@@ -1133,7 +1135,7 @@ export async function retrieveStoryRated(
 
   logger.info({ took: timer() }, "check comment rated query");
 
-  return !!previous;
+  return previous;
 }
 
 export async function retrieveManyStoryRatings(
@@ -1163,7 +1165,7 @@ export async function retrieveManyStoryRatings(
             $in: PUBLISHED_STATUSES,
           },
           // We only want to look at comments that contain a rating.
-          rating: { $exists: true },
+          rating: { $gt: 0 },
         },
       },
       {
@@ -1173,6 +1175,25 @@ export async function retrieveManyStoryRatings(
           count: { $sum: 1 },
         },
       },
+      // We could use the following if we're experiencing issues with double
+      // ratings being added.
+      // { $sort: { createdAt: -1 } },
+      // {
+      //   $group: {
+      //     _id: {
+      //       storyID: "$storyID",
+      //       authorID: "$authorID",
+      //     },
+      //     rating: { $first: "$rating" },
+      //   },
+      // },
+      // {
+      //   $group: {
+      //     _id: "$_id.storyID",
+      //     average: { $avg: "$rating" },
+      //     count: { $sum: 1 },
+      //   },
+      // },
     ])
     .toArray();
 
