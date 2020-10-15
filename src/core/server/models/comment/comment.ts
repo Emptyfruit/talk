@@ -1126,7 +1126,7 @@ export async function retrieveAuthorStoryRating(
 ) {
   const timer = createTimer();
 
-  const previous = await collection<RequireProperty<Comment, "rating">>(
+  const comment = await collection<RequireProperty<Comment, "rating">>(
     mongo
   ).findOne({
     tenantID,
@@ -1138,7 +1138,7 @@ export async function retrieveAuthorStoryRating(
 
   logger.info({ took: timer() }, "check comment rated query");
 
-  return previous;
+  return comment;
 }
 
 export async function retrieveManyStoryRatings(
