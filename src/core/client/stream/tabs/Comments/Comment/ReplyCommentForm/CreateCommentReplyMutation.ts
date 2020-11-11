@@ -303,6 +303,7 @@ async function commit(
                   id: uuidGenerator(),
                   media: null,
                 },
+                rating: null,
                 parent: {
                   id: parentComment.id,
                   author: parentComment.author
