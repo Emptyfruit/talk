@@ -32,6 +32,7 @@ import RemainingCharactersContainer from "../../RemainingCharacters";
 import RTEContainer, { RTEButton } from "../../RTE";
 import { RTELocalized } from "../../RTE/RTE";
 import MediaField, { Widget } from "./MediaField";
+import RatingInput from "./RatingInput";
 
 import styles from "./CommentForm.css";
 
@@ -66,16 +67,20 @@ interface MediaConfig {
   };
 }
 
-interface FormProps {
+export type OnChangeHandler = (state: FormState<any>, form: FormApi) => void;
+export type OnSubmitHandler = OnSubmit<FormSubmitProps>;
+
+export interface FormProps {
   body: string;
+  rating?: number;
   media?: MediaProps;
 }
 
 interface FormSubmitProps extends FormProps, FormError {}
 
 interface Props {
-  onSubmit: OnSubmit<FormSubmitProps>;
-  onChange?: (state: FormState<any>, form: FormApi) => void;
+  onSubmit: OnSubmitHandler;
+  onChange?: OnChangeHandler;
   initialValues?: FormProps;
   min: number | null;
   max: number | null;
@@ -91,6 +96,7 @@ interface Props {
   submitStatus?: React.ReactNode;
   classNameRoot: "createComment" | "editComment" | "createReplyComment";
   mediaConfig: MediaConfig;
+  mode?: "rating" | "comment";
   placeholder: string;
   placeHolderId: string;
   bodyInputID: string;
@@ -110,6 +116,7 @@ function createWidgetToggle(desiredWidget: Widget) {
 }
 
 const CommentForm: FunctionComponent<Props> = (props) => {
+  const { mode = "comment" } = props;
   const [mediaWidget, setMediaWidget] = useState<Widget>(null);
   const [pastedMedia, setPastedMedia] = useState<MediaLink | null>(null);
   const { onSubmit, mediaConfig } = props;
@@ -210,6 +217,9 @@ const CommentForm: FunctionComponent<Props> = (props) => {
             onSubmit={handleSubmit}
             id="comments-postCommentForm-form"
           >
+            {mode === "rating" && (
+              <RatingInput disabled={submitting || props.disabled} />
+            )}
             <HorizontalGutter>
               <FormSpy
                 onChange={(state) => {
@@ -308,14 +318,16 @@ const CommentForm: FunctionComponent<Props> = (props) => {
                       </Localized>
                     )}
                   </Field>
-                  <MediaField
-                    widget={mediaWidget}
-                    setWidget={setMediaWidget}
-                    pastedMedia={pastedMedia}
-                    setPastedMedia={setPastedMedia}
-                    siteID={props.siteID}
-                    giphyConfig={props.mediaConfig.giphy}
-                  />
+                  {props.mediaConfig && (
+                    <MediaField
+                      widget={mediaWidget}
+                      setWidget={setMediaWidget}
+                      pastedMedia={pastedMedia}
+                      setPastedMedia={setPastedMedia}
+                      siteID={props.siteID}
+                      giphyConfig={props.mediaConfig.giphy}
+                    />
+                  )}
                 </div>
               </div>
               {!props.expired && props.editableUntil && (
