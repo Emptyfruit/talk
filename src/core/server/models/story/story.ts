@@ -109,6 +109,7 @@ export interface Story extends TenantResource {
 export interface UpsertStoryInput {
   id?: string;
   url: string;
+  mode?: GQLSTORY_MODE;
   siteID: string;
 }
 
@@ -120,7 +121,7 @@ export interface UpsertStoryResult {
 export async function upsertStory(
   mongo: Db,
   tenantID: string,
-  { id = uuid(), url, siteID }: UpsertStoryInput,
+  { id = uuid(), url, mode, siteID }: UpsertStoryInput,
   now = new Date()
 ): Promise<UpsertStoryResult> {
   // Create the story, optionally sourcing the id from the input, additionally
@@ -134,6 +135,10 @@ export async function upsertStory(
     commentCounts: createEmptyRelatedCommentCounts(),
     settings: {},
   };
+
+  if (mode) {
+    story.settings.mode = mode;
+  }
 
   try {
     // Perform the find and update operation to try and find and or create the
@@ -200,6 +205,7 @@ export async function findStory(
 export interface FindOrCreateStoryInput {
   id?: string;
   url?: string;
+  mode?: GQLSTORY_MODE;
 }
 
 export interface FindOrCreateStoryResult {
@@ -210,7 +216,7 @@ export interface FindOrCreateStoryResult {
 export async function findOrCreateStory(
   mongo: Db,
   tenantID: string,
-  { id, url }: FindOrCreateStoryInput,
+  { id, url, mode }: FindOrCreateStoryInput,
   siteID: string | null,
   now = new Date()
 ): Promise<FindOrCreateStoryResult> {
@@ -223,6 +229,7 @@ export async function findOrCreateStory(
         {
           id,
           url,
+          mode,
           siteID,
         },
         now
@@ -249,7 +256,7 @@ export async function findOrCreateStory(
     throw new Error("cannot upsert story without site ID");
   }
 
-  return upsertStory(mongo, tenantID, { url, siteID }, now);
+  return upsertStory(mongo, tenantID, { url, mode, siteID }, now);
 }
 
 export type CreateStoryInput = Partial<
